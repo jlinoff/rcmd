@@ -1,0 +1,37 @@
+OVERVIEW
+
+  This release contains the rcmd.py tool which runs remote commands on
+  one or more hosts using the SSH protocol, ancillary tools,
+  documentation and examples. To see details about how to use rcmd.py,
+  see the on line help (-h), read the HELP.txt and look at the
+  examples.
+
+  My motivation for developing and releasing this tool is that it has
+  been so useful to me for system administration. I chose the GPLv3
+  license to allow it to be disseminated as widely as possible.
+
+INSTALLATION AND SETUP
+
+  This tool does not need to be compiled, you can simply retrieve it
+  from github or download it as a tarfile.
+
+  The pubic git repo is https://github.com/jlinoff/rcmd.git.
+
+  $ wget http://projects.joelinoff.com/rcmd/rcmd-1.0.tar.bz2
+  $ tar jxf rcmd-1.0.tar.bz2
+
+  You may have to install local support for python packages like
+  argparse, paramiko or yaml. I tend to use a virtualenv and pip for
+  this.
+
+  After that you will want to create a login configuration file that
+  contains host login information:
+
+  $ ./rcmd-1.0/rcmd/bin/rcmd_edit_conf.sh login.conf
+  Password:
+  Confrm:
+
+  The login configuration file is a YAML formatted file that is
+  described in the HELP.txt file.
+
+

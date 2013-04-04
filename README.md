@@ -1,13 +1,31 @@
 rcmd
 ====
 
-Python tool (rcmd.py) that runs commands on remote hosts using the SSH
-protocol (paramiko) plus an editing tool that automatically decrypts
-and encrypts the configuration data.
+This project contains a python tool that runs commands on remote hosts
+using the SSH protocol (paramiko), an editing tool that automatically
+decrypts/encrypts configuration data and examples that make it easy to
+automate all sorts of different administration tasks especially when
+it is used with an encrypted login configuration file.
 
-It is a very flexible tool that can be used to automate all sorts of
-different administration tasks especially when it is tied into an
-encrypted login configuration file.
+Here is the list of available files/directories:
+
+   File                   Brief Description
+   =====================  ========================================
+   bin/rcmd.py            The remote command execution tool.
+
+   bin/rcmd_crypt.py      Tool used by rcmd_edit_conf.sh.
+
+   bin/rcmd_edit_conf.sh  Tool edit encrypted conf files.
+
+   examples/conf.sh       The configuration file for the examples.
+                          You must edit this file to get the examples
+                          to work. See the documentation in that file
+        		  for additional information.
+
+   examples/*.sh          Some example scripts.
+
+   docs/                  Some additional documentation.
+
   
 Rather than try to describe all of the options here, I am going to
 present a couple of examples and refer you to the HELP.txt and files
