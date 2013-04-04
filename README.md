@@ -9,24 +9,23 @@ it is used with an encrypted login configuration file.
 
 Here is the list of available files/directories:
 
-   File                   Brief Description
-   =====================  ========================================
-   bin/rcmd.py            The remote command execution tool.
+    File                   Brief Description
+    =====================  ========================================
+    bin/rcmd.py            The remote command execution tool.
 
-   bin/rcmd_crypt.py      Tool used by rcmd_edit_conf.sh.
+    bin/rcmd_crypt.py      Tool used by rcmd_edit_conf.sh.
 
-   bin/rcmd_edit_conf.sh  Tool edit encrypted conf files.
+    bin/rcmd_edit_conf.sh  Tool edit encrypted conf files.
 
-   examples/conf.sh       The configuration file for the examples.
-                          You must edit this file to get the examples
-                          to work. See the documentation in that file
-        		  for additional information.
+    examples/conf.sh       The configuration file for the examples.
+                           You must edit this file to get the examples
+                           to work. See the documentation in that file
+                           for additional information.
 
-   examples/*.sh          Some example scripts.
+    examples/*.sh          Some example scripts.
 
-   docs/                  Some additional documentation.
+    docs/                  Some additional documentation.
 
-  
 Rather than try to describe all of the options here, I am going to
 present a couple of examples and refer you to the HELP.txt and files
 in the examples subdirectory that are provided with the package.
