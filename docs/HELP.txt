@@ -1,0 +1,349 @@
+usage: rcmd.py [-h] [-b CMD_FILE] [-B CMD_FILE INPUT_FILE] [-c CMD_STRING]
+               [-C CMD_STRING INPUT_STRING] [-D HOST USER PASSWORD PORT] [-e]
+               [-H HOST] [--list-hosts] [-l FILE] [-L ENCRYPTED_FILE PASSWORD]
+               [--nowarn] [-p PASSWORD] [-P PORT] [-t SECONDS] [-u USER] [-v]
+               [-V]
+
+description:
+  This tool runs remote commands on or more hosts using the SSH
+  protocol.
+  
+  It is a very flexible tool that can be used to automate all sorts of
+  different administration tasks especially when it is tied into an
+  encrypted login configuration file. Here are some of the things that I
+  use it for:
+  
+    1. Run smartcl -a on all physical drives and filter out error
+       information. It uses smartctl --scan to determine the devices.
+    2. Check hard disk performance using hdparm (i.e., hdparm -Tt).
+    3. Check usage on all hosts (uptime).
+    4. Do automatic package updates (yum install -y <pkg>).
+  
+  The document is organized into two section: host specifications and
+  command options. The host specifications section describes the
+  different options available for configuring host logins. The command
+  options sections describes how to specify simple commands and batch
+  files.
+  
+  I tend to use the a login conf file and batch files for my work but
+  that may be overkill for simple operations.
+  
+  
+  1 HOST SPECIFICATIONS
+  
+  Each host requires four items of information: hostname, port, username
+  and password but it is often the case that the same username,
+  password and port is used for all hosts. For secure environments every
+  username, password and port may be different. This tool handles both
+  cases.
+  
+  The easiest approach is to provide a single username, password and
+  port for all hosts. This is typically the case for installations where
+  there is a role account that is used for certain maintenance
+  tasks. The example below shows how it works.
+  
+    EXAMPLE 01: same username, password and port for all hosts.
+  
+      $ # Run a simple command on several hosts using the same
+      $ # username and password. The port is also the same but
+      $ # this example does not show it being using (-P) because
+      $ # assumes the default (port 22).
+      $ rcmd.py -u admin -p "password" -H host1,host2 -c "pwd"
+  
+      $ # Here is another way to do the same thing.
+      $ rcmd.py -u admin -p "password" -H host1 -H host2 -c "pwd"
+  
+  The example above has the drawback of exposing the password on the
+  command line. That limitation can be addressed in two ways. You can
+  cat a protected file that contains the password or you can not specify
+  the -p option in which case you will be prompted for the password. The
+  example below shows how these options work.
+  
+    EXAMPLE 02: make the password entry a bit more secure
+  
+      $ # Run a simple command on several hosts using the same
+      $ # username and password.
+      $ rcmd.py -u admin -p "`cat passfile`" -H host1,host2 -c "pwd"
+  
+      $ # If you don't specify -p and you do specified -u, you will be
+      $ # prompted.
+      $ rcmd.py -u admin -H host1,host2 -c "pwd"
+      admin password:
+  
+  If you are using a different username and password for each host there
+  are a couple of options. You can provide the username and password for
+  each host on the command line using the -D (--define) option or you
+  can define and use a login conf file in YAML format.
+  
+  I generally prefer to use the login conf file because I can define a
+  single, protected conf file for all hosts and encrypt it. I then use
+  regular expressions to pick the hosts that are interesting.
+  
+  The example below shows how to specify the username and password for
+  each host using the extended host format.
+  
+    EXAMPLE 03: username and passwords for each host on the CLI
+  
+      $ # Specify the username, password and port for each host.
+      $ # If you specify 0 for the port, it will use the global
+      $ # default value (-P) or 22 if no global was specified.
+      $ # If you specify '' for either the username or password,
+      $ # the associated global value will be used (-u or -p).
+      $ rcmd.py -D 'host1' 'admin' 'password' 22 \
+                -D 'host2' 'admin' 'password' 22 \
+                -c pwd
+  
+  As you can see, it can get verbose pretty quickly. Another way to do
+  the same thing is to define a login conf file. The tool will look up
+  the username, password and, optionally, the port in the conf file. The
+  example below shows how it works. If the port isn't specified it
+  defaults to the global (-P if specified or 22).
+  
+  The login conf file has two records: global and hosts. The global
+  record defines the login credentials to use for any host that is not
+  defined in the host section. The hosts section contains the login
+  credentials for specific hosts.
+  
+  The data in both cases is the username, password and, optionally,
+  the port. You can use '*' in host username and password fields to
+  designate the use of the corresponding global values.
+
+    EXAMPLE 04: Create and use a login conf file.
+  
+      $ # Create the login configuration file.
+      $ cat >login.conf.txt <<EOF
+      # Login credentials for my site.
+      #
+      # You can choose a different login for each host
+      # or the same login for multiple hosts.
+      {
+        'global' : ['admin', 'password', 22],
+        'hosts'  : {
+           'clack'   : ['tom', 'tappit'],
+           'click'   : ['ray', 'cylinder'],
+           'curly'   : ['choward', 'yipyipyip'],
+           'larry'   : ['lhoward', 'stopitguys'],
+           'moe'     : ['mhoward', 'knucklhead'],
+           'batman'  : ['bwayne', 'darkknight'],
+           'robin'   : ['dgrason', 'junior'],
+           'superman': ['ckent', 'upupandaway'],
+  
+           'ldap-1': ['*', 'secret', 21357],  # special port
+           'ldap-2': ['*', 'secret', 21357],  # special port
+  
+           'vms-1': [],  # VM server
+           'vms-2': [],  # VM server
+           'vms-3': [],  # VM server
+
+           'zfs-1': [],  # file server, ZFS
+           'zfs-2': [],  # file server, ZFS
+        }
+      }
+      EOF
+  
+      $ # Protect the file so that it can only be read by you.
+      $ chmod 0600 login.conf.txt
+  
+      $ # Now run the command for two of the defined hosts.
+      $ # If you do not specify -H, all of the hosts are visited.
+      $ rcmd.py -l login.conf.txt -H clack,moe -c pwd
+  
+  Of course storing this data in plaintext is not very secure so the
+  tool provides a way to read encrypted data using the AES-CBC-256
+  encryption algorithm. The example below shows how to invoke the secure
+  version.
+  
+    EXAMPLE 05: Use an encrypted login conf file.
+  
+      $ # Encrypt the conf file from the previous example.
+      $ # It is okay to read from and write to the same file
+      $ # because it buffers it internally.
+      $ rcmd_crypt -e -p secret -i login.conf.txt -o login.conf
+  
+      $ # Protect the file so that it can only be read by you.
+      $ chmod 0600 login.conf
+  
+      $ # Use the encrypted conf file.
+      $ # If you specify an empty string, you will be prompted.
+      $ rmcd.py -L login.conf '' -H superman,larry -c pwd
+      login.conf Password:
+  
+      $ # The same is true if use the -l option:
+      $ rmcd.py -l login.conf -H batman,robin -c pwd
+      login.conf Password:
+  
+      $ # You can also specify the password on the command line:
+      $ rmcd.py -L login.conf 'password' -H moe,curly -c pwd
+  
+      $ # You can also specify the password on the command line
+      $ # but you may want to cat it from a protected file to
+      $ # avoid having it show up in the history log:
+      $ rmcd.py -L login.conf "`cat password.file`" -H click,clack -c pwd
+  
+  Once you have created a login conf file, you can use it to drive the
+  operation of the tool. It will operate on all of the hosts defined in
+  the conf file if no hosts are explicitly specified but you can control
+  that using filtering. The example below shows how this works with no
+  filtering.
+  
+    EXAMPLE 06: Use the login conf file to operate on all hosts.
+  
+      $ # Run on all hosts defined in the login conf file.
+      $ rcmd.py -L login.conf -c pwd
+      login.conf Password:
+  
+  There are many cases when you only want to subset of the hosts. You
+  can limit the hosts specifying which hosts to include or by specifying
+  which ones to exclude. That is done by allowing regular expressions in
+  the host specification to define which hosts to include and by
+  recognizing a '!' prefix in a host specification to define which hosts
+  to exclude. This is what I meant by the term "filtering".
+  
+  The example below shows how to specify which hosts to include. I have
+  beefed up the login.conf to have more host names.
+  
+    EXAMPLE 07: Choose a subset of hosts to run.
+  
+      $ # Operate on all hosts.
+      $ rcmd.py -l login.conf -c pwd
+      login.conf password:
+  
+      $ # Only operate on one host: click.
+      $ rcmd.py -l login.conf -H click -c pwd
+      login.conf password:
+  
+      $ # Only operate on multiple hosts.
+      $ rcmd.py -l login.conf -H larry,moe,curly -c pwd
+      login.conf password:
+  
+      $ # Only operate on the hosts whose names begin with 'vms' and 'zfs'.
+      $ rcmd.py -l login.conf -H '^vms.*$' -H '^zfs.*$' -c pwd
+      login.conf password:
+  
+  As you can see, this is very convenient but there are cases where you
+  want to exclude a small number of hosts which can be cumbersome using
+  the model above. To do that you can use the unary negation operator (!).
+  The example below shows how to do that.
+  
+    EXAMPLE 08: Exclude a subset of hosts.
+  
+      $ # All hosts except ldap-2.
+      $ rcmd.py -l login.conf.txt -H '!ldap-2' -c pwd
+  
+      $ # All hosts except ldap-1 and ldap-2.
+      $ rcmd.py -l login.conf.txt -H '!ldap-1,ldap-2' -c pwd
+  
+      $ # All hosts except ldap hosts.
+      $ rcmd.py -l login.conf.txt -H '!^ldap-[0-9]+$' -c pwd
+  
+  That covers host specifications. We will now look at the command
+  options in more detail.
+  
+  
+  2 COMMAND OPTIONS
+  
+  Multiple commands can be specified including sudo commands that
+  require input on each host. Furthermore, the default operation of the
+  tools only displays the output from the commands so you cannot even
+  tell which host the command is running on. This section describes how
+  to deal with all of these situations.
+  
+  The example below shows how to run multiple commands.
+  
+    EXAMPLE 09: Multiple commands.
+  
+      $ # Add a header with the host name
+      $ rcmd.py -l login.conf.txt \
+          -c 'echo && echo "=====" && echo "HOST: `hostname`"' \
+          -c date \
+          -c uptime
+  
+  The example below shows how to run a sudo command.
+  
+    EXAMPLE 10: sudo command
+  
+      $ # Use a sudo command.
+      $ rcmd.py -l login.conf.txt \
+          -c 'echo && echo "=====" && echo "HOST: `hostname`"' \
+          -c date \
+          -C 'sudo uname -a' 'password'
+  
+  When you have multiple commands to run it is often easier to batch
+  them up by putting them in a single file and running them all at
+  once. This is done using the batch (-b) option as shown below.
+  
+    EXAMPLE 11: batch processing
+  
+      $ # Use a batch file.
+      $ cat >batch.sh <<EOF
+      #!/bin/bash
+      echo '# ================================================================'
+      echo "# BATCH TEST: `hostname`"
+      echo '# ================================================================'
+      echo "DIR: `pwd`"
+      echo "DATE: `date`"
+      echo "OS: `uname -a`"
+      echo "RELEASE"
+      lsb_release -a | sed -e 's/^/    /g'
+      EOF
+      $ rcmd.py -l login.conf.txt -b batch.sh
+  
+  There is also the possibility that the batch processing will require
+  keyboard input to respond to password prompts. To meet that need,
+  there is a variant of the batch processing that allows you to specify
+  an additional input file. It works using the -B option like this:
+  
+    EXAMPLE 12: batch processing with input
+  
+      $ # Use a batch file.
+      $ cat >batch.rcmd <<EOF
+      #!/bin/bash
+      echo '# ================================================================'
+      echo "# BATCH TEST: `hostname`"
+      echo '# ================================================================'
+      echo "DIR: `pwd`"
+      echo "DATE: `date`"
+      echo "OS: `uname -a`"
+      echo "RELEASE"
+      lsb_release -a | sed -e 's/^/    /g'
+      sudo smartctl -scan  # this requires a password
+      EOF
+  
+      $ cat >batch.in <<EOF
+      bigsecret
+      EOF
+  
+      $ rcmd.py -l login.conf.txt -B batch.rcmd batch.in
+  
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -b CMD_FILE, --batch CMD_FILE
+                        batch commands
+  -B CMD_FILE INPUT_FILE, --batchi CMD_FILE INPUT_FILE
+                        batch commands
+  -c CMD_STRING, --cmd CMD_STRING
+                        a command to execute
+  -C CMD_STRING INPUT_STRING, --cmdi CMD_STRING INPUT_STRING
+                        a command to execute with input
+  -D HOST USER PASSWORD PORT, --define HOST USER PASSWORD PORT
+                        define host data on the command line
+  -e, --exit_on_error   exit host if an error occurs
+  -H HOST, --host HOST  host or comma separated list of hosts
+  --list-hosts          list the hosts explicitly
+  -l FILE, --login FILE
+                        login credentials file
+  -L ENCRYPTED_FILE PASSWORD, --login-secure ENCRYPTED_FILE PASSWORD
+                        secure login file with password
+  --nowarn              disable warnings
+  -p PASSWORD, --password PASSWORD
+                        the default user password
+  -P PORT, --port PORT  the SSH port, default is 22
+  -t SECONDS, --timeout SECONDS
+                        the command timeout, default is 300
+  -u USER, --user USER  the default user name, overrides the login DB
+  -v, --verbose         the level of verbosity
+  -V, --version         show program's version number and exit
+
+author:
+  Joe Linoff
