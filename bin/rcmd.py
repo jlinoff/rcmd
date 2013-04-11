@@ -1134,9 +1134,6 @@ def _get_opts():
     '''
     Define and parse the command line options.
 
-    Use the pydoc command to get the module documentation and
-    incorporate it into the help.
-
     @returns The options.
     '''
     description = 'description:%s' % ('\n  '.join(__doc__.split('\n')))
